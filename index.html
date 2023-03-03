@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>SocketsChat</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+      
+body {
+  font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  text-align: center;
+  background-color: #111b21;
+}
+
+#body-message{
+  width: 80%;
+  height: 80%;
+  margin: auto;
+}
+
+#message_area_list{
+  width: 100%;
+  height: 600px;
+  background-color: #222e35;
+  overflow-y: scroll;
+}
+
+#scroll_bar{
+  height: auto;
+}
+
+::-webkit-scrollbar {
+    display: none;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+li {
+  margin: 10px;
+  font-size: 16px;
+  border-bottom-color:#374045; 
+  border-bottom-style:dashed; 
+  border-bottom-width:2px;
+  color: #aebac1;
+}
+
+#message_list {
+  height: calc(100% - 100px);
+  overflow-y: auto;
+  padding: 10px;
+  background-color: transparent;
+  }
+
+#message_area {
+  position: absolute;
+  bottom: 0;
+  width: 80%;
+  background-color: #2a3942;
+  height: 100px;
+  font-size: 15px;
+}
+
+#text_area {
+  width: 50%;
+  margin: 10px;
+  height: 30px;
+  border-radius: 15px;
+  border: 1px solid #D7D7D7;
+  padding: 10px;
+  font-size: 20px;
+  outline: none;
+  background-color: #202c33;
+  color: #c8ede3;
+  overflow: hidden;
+  float: left;
+}
+
+button {
+  margin: 10px;
+  background-color: #025144;
+  color: #FFFFFF;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 15px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #006699;
+}
+
+#send_message_button{
+  overflow: hidden;
+  float: left;
+  margin-top: 15px;
+}
+
+.container-input{
+  overflow: hidden;
+  float: left;
+  margin-top: 5px;
+}
+
+.inputfile-5 + label {
+    color: #c39f77;
+}
+
+.inputfile-5:focus + label,
+.inputfile-5.has-focus + label,
+.inputfile-5 + label:hover {
+    color: #9f8465;
+}
+
+.inputfile-5 + label figure {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background-color: #c39f77;
+    display: block;
+    padding: 20px;
+    margin: 0 auto 10px;
+}
+
+.inputfile-5:focus + label figure,
+.inputfile-5.has-focus + label figure,
+.inputfile-5 + label:hover figure {
+    background-color: #9f8465;
+}
+
+.inputfile-5 + label svg {
+    width: 100%;
+    height: 100%;
+    fill: #fff;
+}
+
+#send_image_button {
+  background-color: #005c4b;
+  overflow: hidden;
+  float: left;
+  margin-top: 15px;
+}
+
+#send_image_button:hover {
+  background-color: #2D4373;
+}
+
+#image_upload{
+  width: 10%;
+  display: none;
+}
+
+img{
+  width: 700px;
+  height: 500px;
+}
+    </style>
+  </head>
+  <body>
+    <div id="body-message">
+      <div id="message_area_list">
+        <div id="scroll_bar">
+          <ul id="message_list"></ul>
+        </div>
+      </div>
+    <form id="message_area" action="">
+      <input id="text_area" autocomplete="off" placeholder="Write a message here"/>
+      <button id="send_message_button">Send Message</button>
+      <div class="container-input">
+        <input type="file" name="image_upload" id="image_upload" class="inputfile inputfile-5" data-multiple-caption="{count}" multiple />
+        <label for="image_upload">
+        <figure>
+          <svg xmlns="http://www.w3.org/2000/svg" class="iborrainputfile" width="20" height="17" viewBox="0 0 20 17"><path d="M10 0l-5.2 4.9h3.3v5.1h3.8v-5.1h3.3l-5.2-4.9zm9.3 11.5l-3.2-2.1h-2l3.4 2.6h-3.5c-.1 0-.2.1-.2.1l-.8 2.3h-6l-.8-2.2c-.1-.1-.1-.2-.2-.2h-3.6l3.4-2.6h-2l-3.2 2.1c-.4.3-.7 1-.6 1.5l.6 3.1c.1.5.7.9 1.2.9h16.3c.6 0 1.1-.4 1.3-.9l.6-3.1c.1-.5-.2-1.2-.7-1.5z"></path></svg>
+        </figure>
+        <span class="iborrainputfile">Archivo</span>
+        </label>
+      </div>
+      <button id="send_image_button">Send Image</button>
+    </form>
+    </div>
+
+    <script>
+      // funcion para escroll siempre abajo
+      onload = function(){
+        setInterval(function(){
+          if(window.parar)
+          return;
+          document.getElementById("message_area_list").scrollTop=document.getElementById("message_area_list").scrollHeight;
+        },10);
+      };
+
+      //configuracion de input file
+      'use strict';
+
+      (function ( document, window, index ){
+	      var inputs = document.querySelectorAll( '.inputfile' );
+	      Array.prototype.forEach.call( inputs, function( input ){
+		      var label	 = input.nextElementSibling,
+			    labelVal = label.innerHTML;
+          input.addEventListener( 'change', function( e ){
+			      var fileName = '';
+			      if( this.files && this.files.length > 1 ){
+				      fileName = ( this.getAttribute( 'data-multiple-caption' ) || '' ).replace( '{count}', this.files.length );
+            }else{
+				      fileName = e.target.value.split( '\\' ).pop();
+            }if( fileName ){
+				      label.querySelector( 'span' ).innerHTML = fileName;
+            }else{
+				      label.innerHTML = labelVal;
+            }
+		      });
+	      });
+      }( document, window, 0 ));
+
+      // variables para optencion y envio de imagen
+      const imageUploadButton = document.getElementById("image_upload");
+      const sendImageButton = document.getElementById("send_image_button");
+
+      // envio de imagen de un cliente a otro
+      sendImageButton.addEventListener("click", () => {
+        const file = imageUploadButton.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const imageData = event.target.result;
+          socket.emit("send image", imageData);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // uso de socket para el cliente
+      const socket = io();
+      // variable de generacion para el usuario
+      let username = window.prompt("Usuario:");
+
+      // mensaje de conexion de nuevo usuario
+      socket.emit("new user", username);
+
+      // ventana emergente para registro de usuario
+      socket.on("username error", (message) => {
+        alert(message);
+        const newUsername = window.prompt("Usuario");
+        socket.emit("new user", newUsername);
+        username = newUsername;
+      });
+
+      // area de mensajes entre clientes
+      const messageForm = document.getElementById("message_area");
+      const textInput = document.getElementById("text_area");
+
+      // validacion de mensaje privado a partir del @
+      messageForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (textInput.value) {
+          if (textInput.value.startsWith("@")) {
+            const targetUser = textInput.value.split(" ")[0].substr(1);
+            const message = textInput.value.substr(targetUser.length + 2);
+            socket.emit("send private message", {
+              username: targetUser,
+              message,
+            });
+          } else {
+            socket.emit("new message", textInput.value);
+          }
+          textInput.value = "";
+        }
+      });
+
+      // envio de mensajes y visualizacion de mensajes
+      socket.on("send message", (data) => {
+        const messageList = document.getElementById("message_list");
+        const chatItem = document.createElement("li");
+        chatItem.textContent = '[General] ' + data.user + ": " + data.message;
+        messageList.appendChild(chatItem);
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+
+      // validacion para usuarios conectados
+      socket.on("connected users", (users) => {
+        const userList = document.getElementById("user_list");
+        userList.innerHTML = "";
+        for (const user of users) {
+          const userItem = document.createElement("li");
+          userItem.textContent = user;
+          userItem.addEventListener("click", () => {
+            textInput.value = `@${user} `;
+            textInput.focus();
+          });
+          userList.appendChild(userItem);
+        }
+      });
+
+      // visualizacion del mensaje privado desde el cliente receptor
+      socket.on("private message", (data) => {
+        const messageList = document.getElementById("message_list");
+        const chatItem = document.createElement("li");
+        chatItem.textContent = `[Personal] ${data.sender}: ${data.message}`;
+        messageList.appendChild(chatItem);
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+
+      // actualizacion de mensajes para el receptor de un mensaje privado
+      socket.on("new private message", (username) => {
+        const userList = document.getElementById("user_list");
+        const userItem = userList.querySelector(`li:contains(${username})`);
+        userItem.style.fontWeight = "bold";
+        setTimeout(() => {
+          userItem.style.fontWeight = "normal";
+        }, 5000);
+      });
+
+      // emision de imagen en el chat
+      socket.on('send image', (imageData) => {
+      socket.broadcast.emit('receive image', imageData);
+   });
+
+   // recepcion de imagen
+   socket.on('receive image', (imageData) => {
+      const messageList = document.getElementById('message_list');
+      const chatItem = document.createElement('li');
+      const image = document.createElement('img');
+      image.src = imageData;
+      chatItem.appendChild(image);
+      messageList.appendChild(chatItem);
+      window.scrollTo(0, document.body.scrollHeight);
+   });
+    </script>
+  </body>
+</html>
